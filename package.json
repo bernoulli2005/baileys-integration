@@ -1,0 +1,31 @@
+{
+  "name": "wp-integration",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "dev": "nodemon",
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@hapi/boom": "^10.0.1",
+    "@whiskeysockets/baileys": "6.17.16",
+    "axios": "^1.13.2",
+    "baileys": "^7.0.0-rc.9",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.2.1",
+    "helmet": "^8.1.0",
+    "node-cache": "^5.1.2",
+    "pino": "^10.2.1",
+    "qrcode": "^1.5.4",
+    "winston": "^3.19.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.0"
+  }
+}

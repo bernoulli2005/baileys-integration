@@ -1,0 +1,854 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>WhatsApp Baileys - Test Console</title>
+    <style>
+        :root {
+            font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+        }
+
+        body {
+            margin: 0;
+            background: #0b0e14;
+            color: #e6e6e6;
+        }
+
+        header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #1d2333;
+            background: #0f1420;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: .2px;
+        }
+
+        .sub {
+            opacity: .8;
+            font-size: 12px;
+            margin-top: 6px;
+        }
+
+        main {
+            display: grid;
+            grid-template-columns: 420px 1fr;
+            gap: 16px;
+            padding: 16px;
+        }
+
+        .card {
+            background: #0f1420;
+            border: 1px solid #1d2333;
+            border-radius: 14px;
+            overflow: hidden;
+        }
+
+        .card header {
+            position: unset;
+            border-bottom: 1px solid #1d2333;
+            background: transparent;
+        }
+
+        .card h2 {
+            margin: 0;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .card .content {
+            padding: 14px;
+            display: grid;
+            gap: 12px;
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        label {
+            font-size: 12px;
+            opacity: .85;
+            display: block;
+            margin-bottom: 6px;
+        }
+
+        input,
+        textarea,
+        select {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid #27304a;
+            background: #0b0e14;
+            color: #e6e6e6;
+            outline: none;
+        }
+
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        button {
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid #27304a;
+            background: #141b2c;
+            color: #e6e6e6;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        button:hover {
+            background: #18223a;
+        }
+
+        button.primary {
+            background: #2b6cff;
+            border-color: #2b6cff;
+        }
+
+        button.primary:hover {
+            background: #245fe8;
+        }
+
+        button.danger {
+            background: #3a1721;
+            border-color: #5a1f33;
+        }
+
+        button.danger:hover {
+            background: #4a1d2a;
+        }
+
+        button:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+        }
+
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            border: 1px solid #27304a;
+            background: #0b0e14;
+            font-size: 12px;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #777;
+        }
+
+        .dot.ok {
+            background: #3ddc97;
+        }
+
+        .dot.warn {
+            background: #ffcc66;
+        }
+
+        .dot.bad {
+            background: #ff5c7a;
+        }
+
+        .qrWrap {
+            display: grid;
+            place-items: center;
+            padding: 10px;
+            background: #0b0e14;
+            border: 1px dashed #27304a;
+            border-radius: 12px;
+        }
+
+        img#qrImg {
+            width: 260px;
+            height: 260px;
+            object-fit: contain;
+            image-rendering: crisp-edges;
+            background: white;
+            border-radius: 12px;
+        }
+
+        .split {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .chatItem {
+            border: 1px solid #1d2333;
+            border-radius: 12px;
+            padding: 10px 12px;
+            background: #0b0e14;
+            cursor: pointer;
+        }
+
+        .chatItem:hover {
+            border-color: #2b6cff;
+        }
+
+        .chatTop {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .chatName {
+            font-weight: 700;
+            font-size: 13px;
+        }
+
+        .chatMeta {
+            font-size: 12px;
+            opacity: .8;
+        }
+
+        .chatMsg {
+            margin-top: 6px;
+            font-size: 12px;
+            opacity: .85;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .messages {
+            height: calc(100vh - 140px);
+            overflow: auto;
+            padding: 14px;
+            display: grid;
+            gap: 10px;
+            background: linear-gradient(180deg, #0b0e14 0%, #0b0e14 70%, #0f1420 100%);
+        }
+
+        .msg {
+            max-width: 70%;
+            padding: 10px 12px;
+            border-radius: 14px;
+            border: 1px solid #1d2333;
+            background: #0f1420;
+            justify-self: start;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .msg.me {
+            background: #13264d;
+            border-color: #1d3a7a;
+            justify-self: end;
+        }
+
+        .msg .meta {
+            font-size: 11px;
+            opacity: .75;
+            margin-top: 6px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .media {
+            margin-top: 8px;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid #1d2333;
+            background: #0b0e14;
+        }
+
+        .media img,
+        .media video,
+        .media audio {
+            width: 100%;
+            display: block;
+        }
+
+        pre {
+            margin: 0;
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid #1d2333;
+            background: #0b0e14;
+            overflow: auto;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .hint {
+            font-size: 12px;
+            opacity: .8;
+        }
+
+        .small {
+            font-size: 11px;
+            opacity: .75;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .footerSend {
+            display: grid;
+            gap: 10px;
+            padding: 14px;
+            border-top: 1px solid #1d2333;
+            background: #0f1420;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>WhatsApp (Baileys) — Test Console</h1>
+        <div class="sub">
+            firmId hardcodeado:
+            <span class="pill"><span class="dot ok"></span><span id="firmIdLabel"></span></span>
+            &nbsp;• API:
+            <span class="pill"><span class="dot ok"></span><span id="apiBaseLabel"></span></span>
+        </div>
+    </header>
+
+    <main>
+        <!-- LEFT -->
+        <section class="card">
+            <header style="padding: 14px;">
+                <h2>Conexión</h2>
+            </header>
+            <div class="content">
+                <div class="row">
+                    <div>
+                        <label>API Base</label>
+                        <input id="apiBase" placeholder="http://localhost:3000" />
+                        <div class="small">Tip: si servís este HTML desde Express, usá la misma base.</div>
+                    </div>
+                    <div>
+                        <label>firmId (hardcode)</label>
+                        <input id="firmId" disabled />
+                        <div class="small">Está hardcodeado, solo lectura.</div>
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <button class="primary" id="btnQr">1) Generate QR</button>
+                    <button id="btnCheck">2) Check status</button>
+                    <button id="btnStatus">/status</button>
+                    <button id="btnReinit">Reinit client</button>
+                    <button class="danger" id="btnLogout">Logout</button>
+                </div>
+
+                <div class="split">
+                    <div>
+                        <div class="hint">Estado:</div>
+                        <div class="pill" id="connPill">
+                            <span class="dot" id="connDot"></span>
+                            <span id="connText">unknown</span>
+                        </div>
+                        <div class="small" id="connMsg"></div>
+                    </div>
+                    <div>
+                        <div class="hint">Última respuesta:</div>
+                        <div class="small">Se muestra abajo (JSON).</div>
+                    </div>
+                </div>
+
+                <div class="qrWrap">
+                    <div class="hint" style="margin-bottom: 8px;">QR (si no está conectado)</div>
+                    <img id="qrImg" alt="QR" />
+                    <div class="small" style="margin-top: 8px; text-align: center;">
+                        Si aparece “alreadyConnected”, el QR no se muestra.
+                    </div>
+                </div>
+
+                <div>
+                    <label>Debug JSON</label>
+                    <pre id="debug">{}</pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- RIGHT -->
+        <section class="card" style="display:flex; flex-direction:column;">
+            <header style="padding: 14px;">
+                <h2>Chats & Mensajes</h2>
+            </header>
+
+            <div class="content"
+                style="grid-template-columns: 360px 1fr; display:grid; gap: 14px; padding: 14px; border-bottom: 1px solid #1d2333;">
+                <div style="display:grid; gap: 10px;">
+                    <div class="actions">
+                        <button class="primary" id="btnChats">3) Get chats</button>
+                        <button id="btnMoreChats">More</button>
+                    </div>
+
+                    <div class="row">
+                        <div>
+                            <label>limit</label>
+                            <input id="chatsLimit" type="number" min="1" value="8" />
+                        </div>
+                        <div>
+                            <label>offset</label>
+                            <input id="chatsOffset" type="number" min="0" value="0" />
+                        </div>
+                    </div>
+
+                    <div class="list" id="chatsList"></div>
+                </div>
+
+                <div style="display:grid; gap: 10px;">
+                    <div class="row">
+                        <div>
+                            <label>Chat seleccionado (chatId)</label>
+                            <input id="selectedChatId" placeholder="Elegí un chat de la lista..." />
+                        </div>
+                        <div>
+                            <label>Acciones</label>
+                            <div class="actions">
+                                <button class="primary" id="btnMsgs">4) Load messages</button>
+                                <button id="btnCopyChatId">Copy</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="small">
+                        Tip: podés pegar un número (ej 5493512...) y el server lo normaliza a
+                        <code>@s.whatsapp.net</code>.
+                    </div>
+                </div>
+            </div>
+
+            <div class="messages" id="messages"></div>
+
+            <div class="footerSend">
+                <div class="row">
+                    <div>
+                        <label>Mensaje a enviar</label>
+                        <textarea id="messageText" placeholder="hola! test desde baileys 🚀"></textarea>
+                    </div>
+                    <div>
+                        <label>Enviar</label>
+                        <button class="primary" id="btnSend">5) Send message</button>
+                        <div class="small" style="margin-top:8px;">
+                            Anti-duplicado: si mandás el mismo texto al mismo chat en &lt;5s, te devuelve error 400.
+                        </div>
+                    </div>
+                </div>
+                <div class="small" id="sendHint"></div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // ======== Config hardcode =========
+        const HARD_FIRM_ID = "test-firm-1"; // <- HARDCODEADO
+        const DEFAULT_API_BASE = "http://localhost:3000";
+
+        // ======== UI refs =========
+        const el = (id) => document.getElementById(id);
+
+        const apiBaseInput = el("apiBase");
+        const firmIdInput = el("firmId");
+        const firmIdLabel = el("firmIdLabel");
+        const apiBaseLabel = el("apiBaseLabel");
+
+        const debugPre = el("debug");
+        const qrImg = el("qrImg");
+
+        const connDot = el("connDot");
+        const connText = el("connText");
+        const connMsg = el("connMsg");
+
+        const chatsList = el("chatsList");
+        const chatsLimit = el("chatsLimit");
+        const chatsOffset = el("chatsOffset");
+        const selectedChatId = el("selectedChatId");
+
+        const messagesEl = el("messages");
+        const messageText = el("messageText");
+        const sendHint = el("sendHint");
+
+        // Buttons
+        const btnQr = el("btnQr");
+        const btnCheck = el("btnCheck");
+        const btnStatus = el("btnStatus");
+        const btnReinit = el("btnReinit");
+        const btnLogout = el("btnLogout");
+
+        const btnChats = el("btnChats");
+        const btnMoreChats = el("btnMoreChats");
+
+        const btnMsgs = el("btnMsgs");
+        const btnCopyChatId = el("btnCopyChatId");
+        const btnSend = el("btnSend");
+
+        // ======== State =========
+        let lastChatsPayload = null;
+
+        // ======== Helpers =========
+        function setDebug(obj) {
+            debugPre.textContent = JSON.stringify(obj, null, 2);
+        }
+
+        function setConn(status, message) {
+            connText.textContent = status || "unknown";
+            connMsg.textContent = message || "";
+
+            connDot.classList.remove("ok", "warn", "bad");
+            if (status === "connected" || status === "open") connDot.classList.add("ok");
+            else if (status === "connecting") connDot.classList.add("warn");
+            else if (status === "disconnected" || status === "close" || status === "error") connDot.classList.add("bad");
+        }
+
+        function apiBase() {
+            return (apiBaseInput.value || DEFAULT_API_BASE).replace(/\/+$/, "");
+        }
+
+        async function apiFetch(path, opts = {}) {
+            const url = apiBase() + path;
+
+            const headers = { ...(opts.headers || {}) };
+
+            // ✅ Solo setear Content-Type si mandamos body
+            if (opts.body && !headers["Content-Type"]) {
+                headers["Content-Type"] = "application/json";
+            }
+
+            const res = await fetch(url, { ...opts, headers });
+
+            let json = null;
+            try { json = await res.json(); }
+            catch { json = { raw: await res.text() }; }
+
+            if (!res.ok) {
+                const err = new Error("HTTP " + res.status);
+                err.status = res.status;
+                err.payload = json;
+                throw err;
+            }
+            return json;
+        }
+
+        function clearMessages() {
+            messagesEl.innerHTML = "";
+        }
+
+        function addMessageBubble(m, selfId) {
+            const wrapper = document.createElement("div");
+            wrapper.className = "msg" + (m.fromMe ? " me" : "");
+
+            const text = document.createElement("div");
+            text.textContent = m.body || "";
+
+            wrapper.appendChild(text);
+
+            // Media preview si viene dataURL
+            if (m.mediaUrl) {
+                const mediaWrap = document.createElement("div");
+                mediaWrap.className = "media";
+
+                if ((m.mimetype || "").startsWith("image/")) {
+                    const img = document.createElement("img");
+                    img.src = m.mediaUrl;
+                    mediaWrap.appendChild(img);
+                } else if ((m.mimetype || "").startsWith("video/")) {
+                    const video = document.createElement("video");
+                    video.src = m.mediaUrl;
+                    video.controls = true;
+                    mediaWrap.appendChild(video);
+                } else if ((m.mimetype || "").startsWith("audio/")) {
+                    const audio = document.createElement("audio");
+                    audio.src = m.mediaUrl;
+                    audio.controls = true;
+                    mediaWrap.appendChild(audio);
+                } else {
+                    const a = document.createElement("a");
+                    a.href = m.mediaUrl;
+                    a.textContent = "Abrir media (dataURL)";
+                    a.style.color = "#9cc2ff";
+                    a.style.display = "inline-block";
+                    a.style.padding = "10px";
+                    mediaWrap.appendChild(a);
+                }
+
+                wrapper.appendChild(mediaWrap);
+            }
+
+            const meta = document.createElement("div");
+            meta.className = "meta";
+
+            const ts = (m.timestamp ? new Date(m.timestamp * 1000) : null);
+            const tsText = ts ? ts.toLocaleString() : "";
+
+            meta.innerHTML = `
+        <span>${m.type || "text"}</span>
+        <span>${tsText}</span>
+        <span>${m.fromMe ? "me" : "them"}</span>
+      `;
+            wrapper.appendChild(meta);
+
+            messagesEl.appendChild(wrapper);
+        }
+
+        function renderChats(payload) {
+            chatsList.innerHTML = "";
+            (payload.chats || []).forEach((c) => {
+                const item = document.createElement("div");
+                item.className = "chatItem";
+                item.onclick = () => {
+                    selectedChatId.value = c.id;
+                    // auto load messages
+                    loadMessages().catch(() => { });
+                };
+
+                const top = document.createElement("div");
+                top.className = "chatTop";
+
+                const left = document.createElement("div");
+                left.innerHTML = `
+          <div class="chatName">${escapeHtml(c.name || c.id)}</div>
+          <div class="chatMeta">${escapeHtml(c.id)} ${c.isGroup ? "• group" : ""}</div>
+        `;
+
+                const right = document.createElement("div");
+                right.className = "chatMeta";
+                right.textContent = (c.unreadCount ? `unread: ${c.unreadCount}` : "");
+
+                top.appendChild(left);
+                top.appendChild(right);
+
+                const msg = document.createElement("div");
+                msg.className = "chatMsg";
+                msg.textContent = c.lastMessage?.body ? `${c.lastMessage.type}: ${c.lastMessage.body}` : "(sin mensajes)";
+
+                item.appendChild(top);
+                item.appendChild(msg);
+
+                chatsList.appendChild(item);
+            });
+        }
+
+        function escapeHtml(str) {
+            return String(str || "")
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#039;");
+        }
+
+        // ======== Actions =========
+        async function generateQr() {
+            qrImg.removeAttribute("src");
+            setConn("connecting", "Generando QR...");
+
+            try {
+                const data = await apiFetch(`/generate-qr/${encodeURIComponent(HARD_FIRM_ID)}`);
+                setDebug(data);
+
+                if (data.alreadyConnected) {
+                    setConn("connected", "alreadyConnected: true");
+                    qrImg.removeAttribute("src");
+                    return;
+                }
+                if (data.qrCode) {
+                    qrImg.src = data.qrCode;
+                    setConn("connecting", "QR listo. Escanealo con el celular.");
+                } else {
+                    setConn("error", "No vino qrCode en la respuesta");
+                }
+            } catch (err) {
+                setConn("error", err.payload?.error || err.message);
+                setDebug({ error: err.message, payload: err.payload, status: err.status });
+            }
+        }
+
+        async function checkConnectionStatus() {
+            try {
+                const data = await apiFetch(`/check-connection-status/${encodeURIComponent(HARD_FIRM_ID)}`);
+                setDebug(data);
+                setConn(data.status, data.message);
+            } catch (err) {
+                setConn("error", err.payload?.message || err.message);
+                setDebug({ error: err.message, payload: err.payload, status: err.status });
+            }
+        }
+
+        async function getStatus() {
+            try {
+                const data = await apiFetch(`/status/${encodeURIComponent(HARD_FIRM_ID)}`);
+                setDebug(data);
+                // este endpoint devuelve status: open/connecting/close
+                setConn(data.status, `isReady=${data.isReady} • messages=${data.messageCount}`);
+            } catch (err) {
+                setConn("error", err.payload?.error || err.message);
+                setDebug({ error: err.message, payload: err.payload, status: err.status });
+            }
+        }
+
+        async function reinit() {
+            try {
+                const data = await apiFetch(`/reinitialize-client/${encodeURIComponent(HARD_FIRM_ID)}`, { method: "POST" });
+                setDebug(data);
+                setConn("connecting", data.message || "reinit ok");
+            } catch (err) {
+                setConn("error", err.payload?.error || err.message);
+                setDebug({ error: err.message, payload: err.payload, status: err.status });
+            }
+        }
+
+        async function logout() {
+            try {
+                const data = await apiFetch(`/logout/${encodeURIComponent(HARD_FIRM_ID)}`);
+                setDebug(data);
+                setConn("disconnected", data.message || "logout ok");
+                qrImg.removeAttribute("src");
+                clearMessages();
+                chatsList.innerHTML = "";
+            } catch (err) {
+                setConn("error", err.payload?.error || err.message);
+                setDebug({ error: err.message, payload: err.payload, status: err.status });
+            }
+        }
+
+        async function loadChats() {
+            try {
+                const limit = Number(chatsLimit.value || 8);
+                const offset = Number(chatsOffset.value || 0);
+
+                const data = await apiFetch(`/get-chats/${encodeURIComponent(HARD_FIRM_ID)}?limit=${limit}&offset=${offset}`);
+                lastChatsPayload = data;
+                setDebug(data);
+                renderChats(data);
+            } catch (err) {
+                setDebug({ error: err.message, payload: err.payload, status: err.status });
+            }
+        }
+
+        async function loadMessages() {
+            const chatId = selectedChatId.value.trim();
+            if (!chatId) return;
+
+            try {
+                clearMessages();
+                const encodedChatId = encodeURIComponent(chatId);
+                const data = await apiFetch(`/get-chat-messages/${encodeURIComponent(HARD_FIRM_ID)}/${encodedChatId}`);
+                setDebug(data);
+
+                const selfId = data.selfId;
+                const msgs = data.messages || [];
+
+                // Render en orden cronológico
+                msgs.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+                msgs.forEach(m => addMessageBubble(m, selfId));
+
+                // scroll al final
+                messagesEl.scrollTop = messagesEl.scrollHeight;
+            } catch (err) {
+                setDebug({ error: err.message, payload: err.payload, status: err.status });
+            }
+        }
+
+        async function sendMessage() {
+            const chatId = selectedChatId.value.trim();
+            const msg = messageText.value;
+
+            if (!chatId) {
+                sendHint.textContent = "Elegí/pegá un chatId primero.";
+                return;
+            }
+            if (!msg || !msg.trim()) {
+                sendHint.textContent = "Escribí un mensaje.";
+                return;
+            }
+
+            sendHint.textContent = "Enviando...";
+            btnSend.disabled = true;
+
+            try {
+                const data = await apiFetch(`/send-message/${encodeURIComponent(HARD_FIRM_ID)}`, {
+                    method: "POST",
+                    body: JSON.stringify({ chatId, message: msg })
+                });
+                setDebug(data);
+                sendHint.textContent = `OK • messageId=${data.messageId || ""}`;
+
+                // refrescar mensajes automáticamente
+                await loadMessages();
+            } catch (err) {
+                const reason = err.payload?.error || err.payload?.message || err.message;
+                sendHint.textContent = `Error: ${reason}`;
+                setDebug({ error: err.message, payload: err.payload, status: err.status });
+            } finally {
+                btnSend.disabled = false;
+            }
+        }
+
+        // ======== Wire =========
+        function initUI() {
+            apiBaseInput.value = DEFAULT_API_BASE;
+            firmIdInput.value = HARD_FIRM_ID;
+            firmIdLabel.textContent = HARD_FIRM_ID;
+            apiBaseLabel.textContent = DEFAULT_API_BASE;
+            setConn("unknown", "");
+
+            apiBaseInput.addEventListener("input", () => {
+                apiBaseLabel.textContent = apiBase();
+            });
+
+            btnQr.onclick = generateQr;
+            btnCheck.onclick = checkConnectionStatus;
+            btnStatus.onclick = getStatus;
+            btnReinit.onclick = reinit;
+            btnLogout.onclick = logout;
+
+            btnChats.onclick = loadChats;
+            btnMoreChats.onclick = () => {
+                const lim = Number(chatsLimit.value || 8);
+                const off = Number(chatsOffset.value || 0);
+                chatsOffset.value = String(off + lim);
+                loadChats();
+            };
+
+            btnMsgs.onclick = loadMessages;
+
+            btnCopyChatId.onclick = async () => {
+                try {
+                    await navigator.clipboard.writeText(selectedChatId.value || "");
+                } catch { }
+            };
+
+            btnSend.onclick = sendMessage;
+
+            // Auto polling status (cada 2s)
+            setInterval(() => {
+                getStatus().catch(() => { });
+            }, 2000);
+        }
+
+        initUI();
+    </script>
+</body>
+
+</html>
