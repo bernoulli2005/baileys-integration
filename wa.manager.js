@@ -380,18 +380,32 @@ async function downloadMediaAsDataUrl(webMsg) {
   const fileName = node.fileName || "";
   const fileSize = node.fileLength ? String(node.fileLength) : "";
 
-  if (node.fileLength && Number(node.fileLength) > 8 * 1024 * 1024) {
+  const MAX_BYTES = 8 * 1024 * 1024;
+  const declared = node.fileLength ? Number(node.fileLength) : null;
+  if (declared && declared > MAX_BYTES) {
     return { mediaUrl: null, mimetype, fileName, fileSize };
   }
 
   const stream = await downloadContentFromMessage(node, kind);
-  let buffer = Buffer.from([]);
-  for await (const chunk of stream) buffer = Buffer.concat([buffer, chunk]);
 
+  const chunks = [];
+  let total = 0;
+
+  for await (const chunk of stream) {
+    const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    total += buf.length;
+
+    if (total > MAX_BYTES) {
+      return { mediaUrl: null, mimetype, fileName, fileSize: String(total) };
+    }
+    chunks.push(buf);
+  }
+
+  const buffer = Buffer.concat(chunks, total);
   const b64 = buffer.toString("base64");
   const mediaUrl = mimetype ? `data:${mimetype};base64,${b64}` : null;
 
-  return { mediaUrl, mimetype, fileName, fileSize };
+  return { mediaUrl, mimetype, fileName, fileSize: String(total) };
 }
 
 /**
