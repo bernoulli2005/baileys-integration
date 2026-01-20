@@ -240,6 +240,41 @@ function normalizeChatId(input) {
   return `${digits}@s.whatsapp.net`;
 }
 
+function buildChatIdCandidates(input) {
+  if (!input) return [];
+  const raw = String(input).trim();
+  if (!raw) return [];
+
+  if (raw.endsWith("@g.us")) return [raw];
+
+  if (raw.endsWith("@c.us")) {
+    const digits = raw.split("@")[0];
+    return [raw, `${digits}@s.whatsapp.net`];
+  }
+
+  if (raw.endsWith("@s.whatsapp.net")) {
+    const digits = raw.split("@")[0];
+    return [raw, `${digits}@c.us`];
+  }
+
+  if (raw.includes("@")) return [raw];
+
+  const digits = raw.replace(/[^\d]/g, "");
+  if (!digits) return [raw];
+  return [`${digits}@c.us`, `${digits}@s.whatsapp.net`];
+}
+
+function toWebhookChatId(jid) {
+  if (!jid) return jid;
+  const raw = String(jid);
+  if (raw.endsWith("@g.us") || raw.endsWith("@c.us")) return raw;
+  if (raw.endsWith("@s.whatsapp.net")) {
+    const digits = raw.split("@")[0];
+    return `${digits}@c.us`;
+  }
+  return raw;
+}
+
 function extractBodyAndMeta(webMsg) {
   const msg = webMsg?.message || {};
   const key = webMsg?.key || {};
@@ -720,6 +755,7 @@ async function sendWebhook(firmId, webMsg) {
   state.messageCount++;
 
   const chatId = webMsg.key.remoteJid;
+  const webhookChatId = toWebhookChatId(chatId);
   const meta = extractBodyAndMeta(webMsg);
 
   const msgId = webMsg.key.id;
@@ -753,7 +789,7 @@ async function sendWebhook(firmId, webMsg) {
   const webhookData = {
     firmId,
     messageId: msgId,
-    chatId,
+    chatId: webhookChatId,
     body: meta.body,
     timestamp: meta.timestamp,
     type: meta.type,
@@ -773,7 +809,31 @@ async function sendWebhook(firmId, webMsg) {
     latestMessages: latest,
   };
 
-  await axios.post(WEBHOOK_URL, webhookData);
+  console.log("[webhook] sending", {
+    firmId,
+    chatId: webhookChatId,
+    messageId: msgId,
+    type: meta.type,
+  });
+
+  try {
+    const res = await axios.post(WEBHOOK_URL, webhookData);
+    console.log("[webhook] sent", {
+      status: res?.status,
+      statusText: res?.statusText,
+      chatId: webhookChatId,
+      messageId: msgId,
+    });
+  } catch (error) {
+    console.log("[webhook] error", {
+      message: error?.message || String(error),
+      status: error?.response?.status,
+      data: error?.response?.data,
+      chatId: webhookChatId,
+      messageId: msgId,
+    });
+    throw error;
+  }
 }
 
 /**
@@ -915,7 +975,18 @@ async function getChatMessages(firmId, chatId) {
     throw new Error("Client not found or not ready");
 
   const { sock, store } = firm;
-  const jid = normalizeChatId(chatId);
+  const candidates = buildChatIdCandidates(chatId);
+  const scored = candidates.map((jid, idx) => ({
+    jid,
+    idx,
+    len: (store.messages?.[jid]?.array || []).length,
+  }));
+  scored.sort((a, b) => {
+    if (b.len !== a.len) return b.len - a.len;
+    return a.idx - b.idx;
+  });
+  const jid =
+    scored[0]?.jid || normalizeChatId(chatId);
 
   const selfId = sock.user?.id || "";
 
@@ -968,7 +1039,13 @@ async function getChatMessages(firmId, chatId) {
     })
   );
 
-  return { messages: simplified, selfId };
+  return {
+    messages: simplified,
+    selfId,
+    chatId,
+    resolvedChatId: jid,
+    messageCount: arr.length,
+  };
 }
 
 module.exports = {
