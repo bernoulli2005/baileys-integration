@@ -92,7 +92,7 @@ app.get("/logout/:firmId", async (req, res) => {
       return res.json({ success: true, message: "No active client found" });
     }
 
-    cleanupFirm(firmId, { deleteAuth: true }).catch(() => {});
+    cleanupFirm(firmId, { deleteAuth: true, logout: true }).catch(() => {});
     return res.json({ success: true, message: "Logout initiated" });
   } catch (error) {
     res
@@ -107,12 +107,13 @@ app.get("/logout/:firmId", async (req, res) => {
  */
 app.get("/generate-qr/:firmId", async (req, res) => {
   const { firmId } = req.params;
+  const forceNewSession = String(req.query.forceNewSession || "0") === "1";
 
   try {
     if (!isValidFirmId(firmId))
       return res.status(400).json({ error: "Invalid firm ID format" });
 
-    const firm = await initFirm(firmId, { forceNewSession: true });
+    const firm = await initFirm(firmId, { forceNewSession });
     const result = await waitForQrOrReady(firm, 30000);
 
     if (result.alreadyConnected) return res.json({ alreadyConnected: true });
@@ -125,11 +126,11 @@ app.get("/generate-qr/:firmId", async (req, res) => {
 
     return res.status(500).json({
       error: "Failed to generate QR code",
-      message: process.env.NODE_ENV === "development" ? error.message : undefined,
+      message:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 });
-
 
 /**
  * CHECK CONNECTION STATUS
@@ -172,12 +173,10 @@ app.get("/check-connection-status/:firmId", async (req, res) => {
     return res.json({ status: "unknown", message: `Client is in ${c} state` });
   } catch (error) {
     logger.error("Status check error:", error);
-    return res
-      .status(500)
-      .json({
-        status: "error",
-        message: "Internal server error while checking status",
-      });
+    return res.status(500).json({
+      status: "error",
+      message: "Internal server error while checking status",
+    });
   }
 });
 
@@ -209,12 +208,10 @@ app.post("/send-message/:firmId", async (req, res) => {
     });
   } catch (error) {
     if (error.code === "DUPLICATE") {
-      return res
-        .status(400)
-        .json({
-          error: "Duplicate message detected",
-          message: "Duplicate message skipping",
-        });
+      return res.status(400).json({
+        error: "Duplicate message detected",
+        message: "Duplicate message skipping",
+      });
     }
     logger.error(`Error sending message for firm ${firmId}:`, error);
     return res.status(500).json({ error: "Failed to send message" });

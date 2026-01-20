@@ -54,7 +54,9 @@ async function getBaileys() {
     }
   }
 
-  throw new Error("Baileys package not found. Install @whiskeysockets/baileys or baileys.");
+  throw new Error(
+    "Baileys package not found. Install @whiskeysockets/baileys or baileys.",
+  );
 }
 
 /**
@@ -97,8 +99,10 @@ async function resolveMakeInMemoryStore(baileysMod) {
       ? baileysMod.default
       : baileysMod) || {};
 
-  if (typeof root?.makeInMemoryStore === "function") return root.makeInMemoryStore;
-  if (typeof baileysMod?.makeInMemoryStore === "function") return baileysMod.makeInMemoryStore;
+  if (typeof root?.makeInMemoryStore === "function")
+    return root.makeInMemoryStore;
+  if (typeof baileysMod?.makeInMemoryStore === "function")
+    return baileysMod.makeInMemoryStore;
 
   // paths típicos (según build)
   const candidates = [
@@ -347,7 +351,10 @@ function extractBodyAndMeta(webMsg) {
 
 async function downloadMediaAsDataUrl(webMsg) {
   const baileys = await getBaileys();
-  const downloadContentFromMessage = pickExport(baileys, "downloadContentFromMessage");
+  const downloadContentFromMessage = pickExport(
+    baileys,
+    "downloadContentFromMessage",
+  );
   if (typeof downloadContentFromMessage !== "function") {
     return { mediaUrl: null, mimetype: null, fileName: "", fileSize: "" };
   }
@@ -440,7 +447,7 @@ async function useS3AuthState(firmId) {
   let data = null;
   try {
     const res = await s3.send(
-      new GetObjectCommand({ Bucket: bucket, Key: keyName })
+      new GetObjectCommand({ Bucket: bucket, Key: keyName }),
     );
     const json = await streamToString(res.Body);
     data = JSON.parse(json, BufferJSON.reviver);
@@ -458,7 +465,7 @@ async function useS3AuthState(firmId) {
       saveTimer = null;
       const payload = JSON.stringify(
         { creds, keys: keysStore },
-        BufferJSON.replacer
+        BufferJSON.replacer,
       );
       await s3.send(
         new PutObjectCommand({
@@ -466,7 +473,7 @@ async function useS3AuthState(firmId) {
           Key: keyName,
           Body: payload,
           ContentType: "application/json",
-        })
+        }),
       );
     }, 500);
   };
@@ -498,7 +505,7 @@ async function useS3AuthState(firmId) {
         new DeleteObjectsCommand({
           Bucket: bucket,
           Delete: { Objects: [{ Key: keyName }], Quiet: true },
-        })
+        }),
       )
       .catch(() => {});
   };
@@ -512,7 +519,7 @@ async function deleteS3Prefix(prefixToDelete) {
   const s3 = makeS3Client();
 
   const listed = await s3.send(
-    new ListObjectsV2Command({ Bucket: bucket, Prefix: prefixToDelete })
+    new ListObjectsV2Command({ Bucket: bucket, Prefix: prefixToDelete }),
   );
   const objects = (listed.Contents || []).map((o) => ({ Key: o.Key }));
   if (!objects.length) return;
@@ -521,7 +528,7 @@ async function deleteS3Prefix(prefixToDelete) {
     new DeleteObjectsCommand({
       Bucket: bucket,
       Delete: { Objects: objects, Quiet: true },
-    })
+    }),
   );
 }
 
@@ -537,28 +544,36 @@ function getFirm(firmId) {
   return firms.get(firmId);
 }
 
-async function cleanupFirm(firmId, opts = { deleteAuth: true }) {
+async function cleanupFirm(
+  firmId,
+  opts = { deleteAuth: false, logout: false },
+) {
   const firm = firms.get(firmId);
   if (!firm) return;
 
   const { sock, auth, store } = firm;
-
   firms.delete(firmId);
+
+  // ✅ Solo logout si realmente querés desvincular la sesión
+  const shouldLogout = !!opts.logout || !!opts.deleteAuth;
 
   try {
     await Promise.race([
       (async () => {
         try {
-          await sock.logout();
+          if (shouldLogout) {
+            await sock.logout(); // ❗ esto invalida la sesión
+          }
         } catch {}
         try {
-          sock.end();
+          sock.end(); // ✅ esto solo corta la conexión (sesión queda válida si guardaste auth)
         } catch {}
       })(),
       new Promise((r) => setTimeout(r, 1000)),
     ]);
   } catch {}
 
+  // ✅ Si pediste borrar auth, borrala
   if (opts.deleteAuth && auth?.deleteAuth) {
     await auth.deleteAuth().catch(() => {});
   }
@@ -577,18 +592,25 @@ async function initFirm(firmId, { forceNewSession = false } = {}) {
 
   const makeWASocket = resolveMakeWASocket(baileys);
   const DisconnectReason = pickExport(baileys, "DisconnectReason");
-  const fetchLatestBaileysVersion = pickExport(baileys, "fetchLatestBaileysVersion");
-  const makeCacheableSignalKeyStore = pickExport(baileys, "makeCacheableSignalKeyStore");
+  const fetchLatestBaileysVersion = pickExport(
+    baileys,
+    "fetchLatestBaileysVersion",
+  );
+  const makeCacheableSignalKeyStore = pickExport(
+    baileys,
+    "makeCacheableSignalKeyStore",
+  );
   const jidNormalizedUser = pickExport(baileys, "jidNormalizedUser");
   const useMultiFileAuthState = pickExport(baileys, "useMultiFileAuthState");
 
   if (typeof makeWASocket !== "function") {
     throw new Error(
       "Baileys export mismatch: makeWASocket no es function. " +
-        "Revisá que el paquete instalado coincida (v6 CJS o v7 ESM) y que no estés importando el equivocado."
+        "Revisá que el paquete instalado coincida (v6 CJS o v7 ESM) y que no estés importando el equivocado.",
     );
   }
-  if (!DisconnectReason) throw new Error("Baileys export missing: DisconnectReason");
+  if (!DisconnectReason)
+    throw new Error("Baileys export missing: DisconnectReason");
   if (typeof makeCacheableSignalKeyStore !== "function")
     throw new Error("Baileys export missing: makeCacheableSignalKeyStore");
   if (typeof jidNormalizedUser !== "function")
@@ -599,7 +621,10 @@ async function initFirm(firmId, { forceNewSession = false } = {}) {
   if (!isValidFirmId(firmId)) throw new Error("Invalid firm ID format");
 
   if (firms.has(firmId)) {
-    await cleanupFirm(firmId, { deleteAuth: forceNewSession });
+    await cleanupFirm(firmId, {
+      deleteAuth: forceNewSession,
+      logout: forceNewSession,
+    });
   }
 
   const emitter = new EventEmitter();
@@ -645,7 +670,7 @@ async function initFirm(firmId, { forceNewSession = false } = {}) {
         })
       : (() => {
           console.warn(
-            "[wa.manager] makeInMemoryStore no disponible. Usando mini-store fallback (recomendado: Baileys v6.x)."
+            "[wa.manager] makeInMemoryStore no disponible. Usando mini-store fallback (recomendado: Baileys v6.x).",
           );
           return createMiniStore();
         })();
@@ -744,7 +769,7 @@ async function initFirm(firmId, { forceNewSession = false } = {}) {
           const backoffTime = Math.min(30000, 1000 * Math.pow(2, attempts));
           setTimeout(
             () => initFirm(firmId, { forceNewSession: false }).catch(() => {}),
-            backoffTime
+            backoffTime,
           );
         } else {
           await cleanupFirm(firmId, { deleteAuth: false }).catch(() => {});
@@ -755,13 +780,28 @@ async function initFirm(firmId, { forceNewSession = false } = {}) {
 
   sock.ev.on("messages.upsert", async ({ messages, type }) => {
     if (type !== "notify") return;
-    const webMsg = messages?.[0];
-    if (!webMsg?.key?.remoteJid) return;
 
-    const tsMs = Number(webMsg.messageTimestamp || 0) * 1000;
-    if (tsMs <= firmState.initTime) return;
+    for (const webMsg of messages || []) {
+      const remoteJid = webMsg?.key?.remoteJid;
+      if (!remoteJid) continue;
 
-    await sendWebhook(firmId, webMsg).catch(() => {});
+      // ✅ 1) Ignorar mensajes enviados por vos
+      if (webMsg?.key?.fromMe) continue;
+
+      // ✅ 2) Ignorar status/broadcast (opcional pero recomendable)
+      if (
+        remoteJid === "status@broadcast" ||
+        String(remoteJid).endsWith("@broadcast")
+      ) {
+        continue;
+      }
+
+      // ✅ 3) Tu filtro de "no procesar backlog viejo" (lo mantenemos)
+      const tsMs = Number(webMsg.messageTimestamp || 0) * 1000;
+      if (tsMs <= firmState.initTime) continue;
+
+      await sendWebhook(firmId, webMsg).catch(() => {});
+    }
   });
 
   return firm;
@@ -867,13 +907,16 @@ async function waitForQrOrReady(firm, timeoutMs = 30000) {
 
   return await Promise.race([
     new Promise((resolve) =>
-      firm.emitter.once("qr", (dataUrl) => resolve({ qrCode: dataUrl }))
+      firm.emitter.once("qr", (dataUrl) => resolve({ qrCode: dataUrl })),
     ),
     new Promise((resolve) =>
-      firm.emitter.once("open", () => resolve({ alreadyConnected: true }))
+      firm.emitter.once("open", () => resolve({ alreadyConnected: true })),
     ),
     new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("QR code generation timeout")), timeoutMs)
+      setTimeout(
+        () => reject(new Error("QR code generation timeout")),
+        timeoutMs,
+      ),
     ),
   ]);
 }
@@ -933,7 +976,10 @@ async function sendText(firmId, chatId, text) {
   try {
     if (isGroup) {
       try {
-        console.log("[sendText] group-prep: fetching metadata", { firmId, jid });
+        console.log("[sendText] group-prep: fetching metadata", {
+          firmId,
+          jid,
+        });
         const meta = await ensureGroupSessions(firm.sock, jid);
         console.log("[sendText] group-prep: metadata", {
           firmId,
@@ -959,7 +1005,9 @@ async function sendText(firmId, chatId, text) {
       textLength: text?.length || 0,
     });
 
-    const res = await retryOperation(() => firm.sock.sendMessage(jid, { text }));
+    const res = await retryOperation(() =>
+      firm.sock.sendMessage(jid, { text }),
+    );
 
     console.log("[sendText] sent", {
       firmId,
@@ -986,7 +1034,10 @@ async function sendText(firmId, chatId, text) {
     });
     if (isGroup && error?.name === "SessionError") {
       try {
-        console.log("[sendText] group-recover: fetching metadata", { firmId, jid });
+        console.log("[sendText] group-recover: fetching metadata", {
+          firmId,
+          jid,
+        });
         const meta = await firm.sock.groupMetadata(jid);
         console.log("[sendText] group-recover: metadata", {
           firmId,
@@ -996,7 +1047,7 @@ async function sendText(firmId, chatId, text) {
         });
 
         const retryRes = await retryOperation(() =>
-          firm.sock.sendMessage(jid, { text })
+          firm.sock.sendMessage(jid, { text }),
         );
         console.log("[sendText] group-recover: sent", {
           firmId,
@@ -1084,7 +1135,7 @@ async function getChats(firmId, { limit = 8, offset = 0 } = {}) {
         lastMessage,
         isMuted: !!chat.muteEndTime,
       };
-    })
+    }),
   );
 
   state.lastActivity = Date.now();
@@ -1124,8 +1175,7 @@ async function getChatMessages(firmId, chatId) {
     if (b.len !== a.len) return b.len - a.len;
     return a.idx - b.idx;
   });
-  const jid =
-    scored[0]?.jid || normalizeChatId(chatId);
+  const jid = scored[0]?.jid || normalizeChatId(chatId);
 
   const selfId = sock.user?.id || "";
 
@@ -1175,7 +1225,7 @@ async function getChatMessages(firmId, chatId) {
         contactName: "",
         contactPhone: "",
       };
-    })
+    }),
   );
 
   return {
