@@ -21,22 +21,40 @@ let _baileys = null;
 async function getBaileys() {
   if (_baileys) return _baileys;
 
-  try {
-    // ✅ preferimos require para v6 (CommonJS)
-    // eslint-disable-next-line global-require
-    _baileys = require("@whiskeysockets/baileys");
-    return _baileys;
-  } catch (err) {
-    const isEsmRequireError =
-      err?.code === "ERR_REQUIRE_ESM" ||
-      String(err?.message || "").includes("ERR_REQUIRE_ESM");
+  const moduleNames = ["@whiskeysockets/baileys", "baileys"];
 
-    if (!isEsmRequireError) throw err;
+  for (const name of moduleNames) {
+    try {
+      // ✅ preferimos require para v6 (CommonJS)
+      // eslint-disable-next-line global-require
+      _baileys = require(name);
+      return _baileys;
+    } catch (err) {
+      const isEsmRequireError =
+        err?.code === "ERR_REQUIRE_ESM" ||
+        String(err?.message || "").includes("ERR_REQUIRE_ESM");
+      const isMissing =
+        err?.code === "MODULE_NOT_FOUND" ||
+        String(err?.message || "").includes("Cannot find module");
 
-    // ✅ fallback para v7 (ESM)
-    _baileys = await import("@whiskeysockets/baileys");
-    return _baileys;
+      if (!isEsmRequireError && !isMissing) throw err;
+
+      if (isEsmRequireError) {
+        // ✅ fallback para v7 (ESM)
+        try {
+          _baileys = await import(name);
+          return _baileys;
+        } catch (importErr) {
+          const isMissingImport =
+            importErr?.code === "MODULE_NOT_FOUND" ||
+            String(importErr?.message || "").includes("Cannot find module");
+          if (!isMissingImport) throw importErr;
+        }
+      }
+    }
   }
+
+  throw new Error("Baileys package not found. Install @whiskeysockets/baileys or baileys.");
 }
 
 /**
