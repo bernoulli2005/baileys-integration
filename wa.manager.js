@@ -106,6 +106,10 @@ async function resolveMakeInMemoryStore(baileysMod) {
     "@whiskeysockets/baileys/lib/Store/make-in-memory-store",
     "@whiskeysockets/baileys/lib/Store/index.js",
     "@whiskeysockets/baileys/lib/Store",
+    "baileys/lib/Store/make-in-memory-store.js",
+    "baileys/lib/Store/make-in-memory-store",
+    "baileys/lib/Store/index.js",
+    "baileys/lib/Store",
   ];
 
   for (const p of candidates) {
@@ -1103,6 +1107,14 @@ async function getChatMessages(firmId, chatId) {
 
   const { sock, store } = firm;
   const candidates = buildChatIdCandidates(chatId);
+  try {
+    const pnJid = normalizeChatId(chatId);
+    const lidStore = sock?.signalRepository?.lidMapping;
+    if (lidStore?.getLIDForPN && pnJid && pnJid.endsWith("@s.whatsapp.net")) {
+      const lid = await lidStore.getLIDForPN(pnJid);
+      if (lid) candidates.push(lid);
+    }
+  } catch {}
   const scored = candidates.map((jid, idx) => ({
     jid,
     idx,
