@@ -927,6 +927,43 @@ async function sendText(firmId, chatId, text) {
       name: error?.name,
       stack: error?.stack,
     });
+    if (isGroup && error?.name === "SessionError") {
+      try {
+        console.log("[sendText] group-recover: fetching metadata", { firmId, jid });
+        const meta = await firm.sock.groupMetadata(jid);
+        console.log("[sendText] group-recover: metadata", {
+          firmId,
+          jid,
+          subject: meta?.subject || "",
+          participants: meta?.participants?.length || 0,
+        });
+
+        const retryRes = await retryOperation(() =>
+          firm.sock.sendMessage(jid, { text })
+        );
+        console.log("[sendText] group-recover: sent", {
+          firmId,
+          jid,
+          messageId: retryRes?.key?.id || "",
+        });
+
+        firm.state.lastActivity = Date.now();
+        firm.state.messageCount++;
+
+        return {
+          messageId: retryRes?.key?.id || "",
+          timestamp: Date.now(),
+        };
+      } catch (retryError) {
+        console.log("[sendText] group-recover: error", {
+          firmId,
+          jid,
+          message: retryError?.message || String(retryError),
+          name: retryError?.name,
+          stack: retryError?.stack,
+        });
+      }
+    }
     throw error;
   }
 }
