@@ -856,6 +856,21 @@ async function waitForQrOrReady(firm, timeoutMs = 30000) {
   ]);
 }
 
+async function ensureGroupSessions(sock, jid) {
+  if (!sock || typeof sock.groupMetadata !== "function") return null;
+
+  const meta = await sock.groupMetadata(jid);
+  const participants = (meta?.participants || [])
+    .map((p) => p?.id)
+    .filter(Boolean);
+
+  if (participants.length && typeof sock.assertSessions === "function") {
+    await sock.assertSessions(participants);
+  }
+
+  return meta;
+}
+
 async function sendText(firmId, chatId, text) {
   const firm = firms.get(firmId);
   if (!firm || !firm.state.isReady)
@@ -894,6 +909,26 @@ async function sendText(firmId, chatId, text) {
   lastMessages[messageKey] = currentMessage;
 
   try {
+    if (isGroup) {
+      try {
+        console.log("[sendText] group-prep: fetching metadata", { firmId, jid });
+        const meta = await ensureGroupSessions(firm.sock, jid);
+        console.log("[sendText] group-prep: metadata", {
+          firmId,
+          jid,
+          subject: meta?.subject || "",
+          participants: meta?.participants?.length || 0,
+        });
+      } catch (prepError) {
+        console.log("[sendText] group-prep: error", {
+          firmId,
+          jid,
+          message: prepError?.message || String(prepError),
+          name: prepError?.name,
+        });
+      }
+    }
+
     console.log("[sendText] pre-send", {
       firmId,
       jid,

@@ -12,9 +12,8 @@
   "description": "",
   "dependencies": {
     "@hapi/boom": "^10.0.1",
-    "@whiskeysockets/baileys": "6.17.16",
+    "@whiskeysockets/baileys": "^7.0.0",
     "axios": "^1.13.2",
-    "baileys": "^7.0.0-rc.9",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
