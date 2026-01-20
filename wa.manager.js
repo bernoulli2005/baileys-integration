@@ -861,8 +861,17 @@ async function sendText(firmId, chatId, text) {
   if (!firm || !firm.state.isReady)
     throw new Error("Client not found or not ready");
 
+  const rawChatId = chatId;
   const jid = normalizeChatId(chatId);
+  const isGroup = String(jid || "").endsWith("@g.us");
   const messageKey = `${firmId}_${jid}`;
+
+  console.log("[sendText] start", {
+    firmId,
+    rawChatId,
+    normalizedJid: jid,
+    isGroup,
+  });
 
   const currentMessage = {
     content: text.trim(),
@@ -884,14 +893,42 @@ async function sendText(firmId, chatId, text) {
   }
   lastMessages[messageKey] = currentMessage;
 
-  const res = await retryOperation(() => firm.sock.sendMessage(jid, { text }));
-  firm.state.lastActivity = Date.now();
-  firm.state.messageCount++;
+  try {
+    console.log("[sendText] pre-send", {
+      firmId,
+      jid,
+      hasStoreMessages: !!firm.store?.messages?.[jid],
+      storeMessageCount: firm.store?.messages?.[jid]?.array?.length || 0,
+      textLength: text?.length || 0,
+    });
 
-  return {
-    messageId: res?.key?.id || "",
-    timestamp: Date.now(),
-  };
+    const res = await retryOperation(() => firm.sock.sendMessage(jid, { text }));
+
+    console.log("[sendText] sent", {
+      firmId,
+      jid,
+      messageId: res?.key?.id || "",
+    });
+
+    firm.state.lastActivity = Date.now();
+    firm.state.messageCount++;
+
+    return {
+      messageId: res?.key?.id || "",
+      timestamp: Date.now(),
+    };
+  } catch (error) {
+    console.log("[sendText] error", {
+      firmId,
+      rawChatId,
+      normalizedJid: jid,
+      isGroup,
+      message: error?.message || String(error),
+      name: error?.name,
+      stack: error?.stack,
+    });
+    throw error;
+  }
 }
 
 async function getChats(firmId, { limit = 8, offset = 0 } = {}) {
