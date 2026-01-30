@@ -131,9 +131,51 @@ async function resolveMakeInMemoryStore(baileysMod) {
  * - NO es tan completo como el store oficial, pero evita crash y permite avanzar
  */
 function createMiniStore() {
-  const chatsMap = new Map(); // jid -> chat
+  const chatsMap = new Map(); // jid -> chat summary
   const messagesMap = new Map(); // jid -> array messages
   const contacts = {}; // id -> contact
+
+  const upsertChatFromMessage = (m) => {
+    const jid = m?.key?.remoteJid;
+    if (!jid) return;
+
+    const ts = Number(m?.messageTimestamp || 0);
+    const fromMe = !!m?.key?.fromMe;
+
+    const prev = chatsMap.get(jid) || { id: jid, jid };
+    chatsMap.set(jid, {
+      ...prev,
+      id: jid,
+      jid,
+      // Baileys suele usar conversationTimestamp/t
+      conversationTimestamp: Math.max(
+        Number(prev.conversationTimestamp || 0),
+        ts,
+      ),
+      t: Math.max(Number(prev.t || 0), ts),
+      // si querés unread, podés incrementar cuando !fromMe (opcional)
+      unreadCount: Number(prev.unreadCount || 0) + (fromMe ? 0 : 1),
+    });
+  };
+
+  const pushMessage = (m) => {
+    const jid = m?.key?.remoteJid;
+    if (!jid) return;
+
+    if (!messagesMap.has(jid)) messagesMap.set(jid, []);
+    const arr = messagesMap.get(jid);
+
+    arr.push(m);
+
+    // limitar memoria
+    const MAX = 500;
+    if (arr.length > MAX) arr.splice(0, arr.length - MAX);
+
+    store.messages[jid] = { array: arr };
+
+    // 🔥 esto hace que getChats empiece a tener chats aunque no lleguen chats.upsert
+    upsertChatFromMessage(m);
+  };
 
   const store = {
     chats: {
@@ -143,30 +185,12 @@ function createMiniStore() {
     messages: {}, // jid -> { array: [...] }
     contacts,
     bind: (ev) => {
-      // chats
-      ev.on("chats.set", ({ chats }) => {
-        (chats || []).forEach((c) => {
-          const id = c?.id || c?.jid;
-          if (!id) return;
-          chatsMap.set(id, c);
-        });
-      });
-
-      ev.on("chats.upsert", (chats) => {
-        (chats || []).forEach((c) => {
-          const id = c?.id || c?.jid;
-          if (!id) return;
-          const prev = chatsMap.get(id) || {};
-          chatsMap.set(id, { ...prev, ...c, id });
-        });
-      });
-
       // contacts
       ev.on("contacts.set", ({ contacts: cs }) => {
         (cs || []).forEach((c) => {
           const id = c?.id;
           if (!id) return;
-          contacts[id] = c;
+          contacts[id] = { ...(contacts[id] || {}), ...c };
         });
       });
 
@@ -178,22 +202,49 @@ function createMiniStore() {
         });
       });
 
-      // messages
-      ev.on("messages.upsert", ({ messages }) => {
-        (messages || []).forEach((m) => {
-          const jid = m?.key?.remoteJid;
-          if (!jid) return;
-
-          if (!messagesMap.has(jid)) messagesMap.set(jid, []);
-          const arr = messagesMap.get(jid);
-
-          arr.push(m);
-          // keep last N messages per chat to limit memory
-          const MAX = 300;
-          if (arr.length > MAX) arr.splice(0, arr.length - MAX);
-
-          store.messages[jid] = { array: arr };
+      // chats (si llegan)
+      ev.on("chats.set", ({ chats }) => {
+        (chats || []).forEach((c) => {
+          const id = c?.id || c?.jid;
+          if (!id) return;
+          chatsMap.set(id, { ...(chatsMap.get(id) || {}), ...c, id, jid: id });
         });
+      });
+
+      ev.on("chats.upsert", (chats) => {
+        (chats || []).forEach((c) => {
+          const id = c?.id || c?.jid;
+          if (!id) return;
+          chatsMap.set(id, { ...(chatsMap.get(id) || {}), ...c, id, jid: id });
+        });
+      });
+
+      // ✅ HISTORY SYNC (clave)
+      ev.on("messaging-history.set", ({ chats, contacts: cs, messages }) => {
+        (chats || []).forEach((c) => {
+          const id = c?.id || c?.jid;
+          if (!id) return;
+          chatsMap.set(id, { ...(chatsMap.get(id) || {}), ...c, id, jid: id });
+        });
+
+        (cs || []).forEach((c) => {
+          const id = c?.id;
+          if (!id) return;
+          contacts[id] = { ...(contacts[id] || {}), ...c };
+        });
+
+        const msgsArray = Array.isArray(messages)
+          ? messages
+          : messages && typeof messages === "object"
+            ? Object.values(messages).flat()
+            : [];
+
+        msgsArray.forEach(pushMessage);
+      });
+
+      // messages live
+      ev.on("messages.upsert", ({ messages }) => {
+        (messages || []).forEach(pushMessage);
       });
     },
     loadMessage: async (jid, id) => {
@@ -610,6 +661,7 @@ async function initFirm(firmId, { forceNewSession = false } = {}) {
     baileys,
     "fetchLatestBaileysVersion",
   );
+  const Browsers = pickExport(baileys, "Browsers");
   const makeCacheableSignalKeyStore = pickExport(
     baileys,
     "makeCacheableSignalKeyStore",
@@ -704,6 +756,8 @@ async function initFirm(firmId, { forceNewSession = false } = {}) {
     printQRInTerminal: false,
     markOnlineOnConnect: false,
     msgRetryCounterCache,
+    syncFullHistory: true,
+    ...(Browsers?.macOS ? { browser: Browsers.macOS("Desktop") } : {}),
     defaultQueryTimeoutMs: undefined,
     auth: {
       creds: auth.state.creds,
@@ -752,6 +806,11 @@ async function initFirm(firmId, { forceNewSession = false } = {}) {
     }
 
     if (connection === "open") {
+      console.log("[wa] OPEN counts", {
+        chats: firm.store?.chats?.all?.()?.length || 0,
+        messageKeys: Object.keys(firm.store?.messages || {}).length,
+      });
+
       firmState.isReady = true;
       firmState.reconnectAttempts = 0;
       emitter.emit("open");
